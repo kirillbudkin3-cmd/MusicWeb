@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Для тебя 💗</title>
+
+<style>
+* {margin:0;padding:0;box-sizing:border-box;}
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg,#ff9a9e,#fad0c4,#ffd6b0);
+  min-height:100vh;
+  padding-bottom:140px;
+  color:white;
+  text-align:center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1 {margin:30px 15px 10px; font-size:32px;}
+
+/* ПЛЕЙЛИСТЫ */
+.playlists {
+  margin-top:20px;
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  flex-wrap:wrap;
+  padding: 0 10px;
+}
+
+.playlist-btn {
+  padding:8px 14px;
+  border:none;
+  border-radius:20px;
+  background:rgba(255,255,255,0.2);
+  color:white;
+  cursor:pointer;
+  transition: 0.3s;
+}
+
+.playlist-btn.active {
+  background:white;
+  color:#ff6b8b;
+  font-weight:600;
+}
+
+/* ===== ОБНОВЛЕННАЯ СЕТКА (4 КОЛОНКИ) ===== */
+.songs {
+  display: grid;
+  /* Жестко задаем 4 колонки для больших экранов */
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 15px;
+  padding: 25px 16px;
+  max-width: 1200px; /* Немного расширил контейнер */
+  margin: 0 auto;
+  align-items: start;
+}
+
+/* ===== КАРТОЧКИ ===== */
+.song {
+  background: rgba(255,255,255,0.18);
+  padding: 15px; /* Чуть уменьшил отступы, чтобы в 4 колонки влезло красиво */
+  border-radius: 18px;
+  cursor: pointer;
+  text-align: left;
+  border: 1px solid rgba(255,255,255,0.25);
+  transition: 0.25s;
+  min-height: 85px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.song:hover {
+  background: rgba(255,255,255,0.32);
+  transform: translateY(-3px);
+}
+
+.song.playing {
+  background: rgba(255,255,255,0.4);
+  border: 1px solid white;
+}
+
+.song-title {
+  font-size: 14px; /* Уменьшил шрифт для компактности в 4 колонки */
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.song-desc {
+  font-size: 11px;
+  opacity: 0.8;
+  margin-top: 5px;
+}
+
+/* ===== АДАПТИВНОСТЬ ===== */
+
+/* Планшеты (до 1024px) — переходим в 3 или 2 колонки */
+@media (max-width: 1024px) {
+  .songs { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .songs { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Телефоны (до 480px) — в 1 колонку */
+@media (max-width: 480px) {
+  .songs { 
+    grid-template-columns: 1fr; 
+    padding: 15px 12px;
+  }
+  h1 { font-size: 26px; }
+}
+
+/* ПЛЕЕР */
+.player {
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  background:#222;
+  padding:15px;
+  z-index: 100;
+}
+
+#title {
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.controls button {
+  font-size:22px;
+  margin:0 10px;
+  border:none;
+  background:none;
+  color:white;
+  cursor:pointer;
+}
+
+/* ПРОГРЕСС */
+.progress-container {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:10px;
+}
+
+#currentTime,#duration {
+  font-size:12px;
+  min-width:35px;
+}
+
+.progress-bar {
+  flex:1;
+  height:4px;
+  background:rgba(255,255,255,0.3);
+  border-radius:10px;
+  cursor:pointer;
+}
+
+.progress-fill {
+  height:100%;
+  width:0%;
+  background:#ff6b8b;
+  border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Для тебя 💗</h1>
+
+<div class="playlists">
+  <button class="playlist-btn active" onclick="loadPlaylist('all', this)">Все</button>
+  <button class="playlist-btn" onclick="loadPlaylist('sad', this)">Грустно</button>
+  <button class="playlist-btn" onclick="loadPlaylist('happy', this)">Весело</button>
+  <button class="playlist-btn" onclick="loadPlaylist('party', this)">Праздник</button>
+  <button class="playlist-btn" onclick="loadPlaylist('history', this)">Наша история</button>
+</div>
+
+<div class="songs" id="songs"></div>
+
+<div class="player">
+  <div id="title">Выбери песню 💗</div>
+
+  <div class="progress-container">
+    <span id="currentTime">0:00</span>
+    <div class="progress-bar" id="progressBar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <span id="duration">0:00</span>
+  </div>
+
+  <div class="controls">
+    <button onclick="prevSong()">⏮</button>
+    <button onclick="togglePlay()" id="playBtn">▶️</button>
+    <button onclick="nextSong()">⏭</button>
+  </div>
+</div>
+
+<audio id="audio"></audio>
+
+<script>
+const songNames = [
+  "Если весь мир замолчит","Ты - мой котенок","Спасибо, любимая", "Начало",
+  "Когда тебе так тяжело", "Внутри нашего времени", "Момент", "Первое время",
+  "Мы сильнее, чем вчера","Между обычными днями","Выше неба", "Первый поцелуй",
+  "Мы как свет","Такая красивая","Зажигай", "За партой",
+  "Навсегда звучим","Это про нас","Лето внутри нас", "Каникулы",
+  "Между строк","По пути","Танцуй, пока горит ночь", "Новый первый год",
+  "Тихо о главном","Просто с тобой", "Праздник внутри", "Билеты до Ярославля",
+  "Лучик солнца","С тобой легче дышать","Ты сегодня сияешь", " В разработке",
+  "Дом", "Сценарий не писали","Твой день", "В разработке",
+  "Мой восход","Это все про тебя","С днем рождения", "В разработке",
+  "Иголки","Вкус лета","Каждый день", "В разработке",
+  "Нормально", "Фонари", "Искра", "В разработке",
+  "Оплот", "Громче, чем все", "Лето навсегда", "В разработке"
+];
+
+const playlists = {
+  all: [...Array(songNames.length).keys()],
+  sad: [0,4,8,12,16,20,24,28,32,36,40,44,48],
+  happy: [1,5,9,13,17,21,25,29,33,37,41,45,49],
+  party: [2,6,10,14,18,22,26,30,34,38,42,46,50],
+  history: [3,7,11,15,19,23,27,31,35,39,43,47,51] 
+};
+
+let currentPlaylist = playlists.all;
+let currentSongIndex = null;
+let isPlaying = false;
+
+const songsContainer = document.getElementById("songs");
+const audio = document.getElementById("audio");
+const title = document.getElementById("title");
+const playBtn = document.getElementById("playBtn");
+const progressFill = document.getElementById("progressFill");
+const currentTimeEl = document.getElementById("currentTime");
+const durationEl = document.getElementById("duration");
+
+function renderSongs() {
+  songsContainer.innerHTML = "";
+
+  currentPlaylist.forEach(globalIndex => {
+    const div = document.createElement("div");
+    div.className = "song";
+    if (currentSongIndex === globalIndex) div.classList.add("playing");
+
+    div.innerHTML = `
+      <div class="song-title">${songNames[globalIndex]}</div>
+      <div class="song-desc">Для тебя 💗</div>
+    `;
+
+    div.onclick = () => playSong(globalIndex);
+    songsContainer.appendChild(div);
+  });
+}
+
+function loadPlaylist(name, el) {
+  currentPlaylist = playlists[name];
+  document.querySelectorAll(".playlist-btn").forEach(b=>b.classList.remove("active"));
+  el.classList.add("active");
+  renderSongs();
+}
+
+function playSong(index) {
+  currentSongIndex = index;
+  audio.src = `song${index+1}.mp3`;
+  audio.play();
+  isPlaying = true;
+  playBtn.textContent = "⏸️";
+  title.textContent = songNames[index];
+  renderSongs();
+}
+
+function togglePlay() {
+  if (currentSongIndex === null) {
+    playSong(currentPlaylist[0]);
+    return;
+  }
+  if (isPlaying) {
+    audio.pause();
+    playBtn.textContent = "▶️";
+  } else {
+    audio.play();
+    playBtn.textContent = "⏸️";
+  }
+  isPlaying = !isPlaying;
+}
+
+function nextSong() {
+  let i = currentPlaylist.indexOf(currentSongIndex);
+  i = (i + 1) % currentPlaylist.length;
+  playSong(currentPlaylist[i]);
+}
+
+function prevSong() {
+  let i = currentPlaylist.indexOf(currentSongIndex);
+  i = (i - 1 + currentPlaylist.length) % currentPlaylist.length;
+  playSong(currentPlaylist[i]);
+}
+
+function formatTime(sec) {
+  if (isNaN(sec)) return "0:00";
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return m + ":" + (s < 10 ? "0"+s : s);
+}
+
+audio.ontimeupdate = () => {
+  if (!audio.duration) return;
+  const percent = (audio.currentTime / audio.duration) * 100;
+  progressFill.style.width = percent + "%";
+  currentTimeEl.textContent = formatTime(audio.currentTime);
+};
+
+audio.onloadedmetadata = () => {
+  durationEl.textContent = formatTime(audio.duration);
+};
+
+document.getElementById("progressBar").onclick = (e) => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const percent = (e.clientX - rect.left) / rect.width;
+  audio.currentTime = percent * audio.duration;
+};
+
+audio.onended = nextSong;
+
+renderSongs();
+</script>
+
+</body>
+</html>
